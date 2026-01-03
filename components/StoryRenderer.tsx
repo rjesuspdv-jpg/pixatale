@@ -193,7 +193,7 @@ export const StoryRenderer: React.FC<StoryRendererProps> = ({ story, onRestart }
     URL.revokeObjectURL(url);
   };
 
-  // --- 3. FLIPBOOK APP (FULL SCREEN & ADAPTIVE TEXT) ---
+  // --- 3. FLIPBOOK APP (FULL SCREEN & ADAPTIVE TEXT & EXIT BUTTON) ---
   const downloadFlipbook = () => {
     // 1. Portada
     const coverPage = `
@@ -247,12 +247,16 @@ export const StoryRenderer: React.FC<StoryRendererProps> = ({ story, onRestart }
         </div>
     `}).join('');
 
-    // 3. Contraportada
+    // 3. Contraportada con Botón de Salida
     const backCover = `
         <div class="page page-cover" data-density="hard">
             <div class="page-content center-all" style="justify-content: center; align-items: center; display: flex; flex-direction: column;">
-                <h2 class="pixel-font" style="font-size: 40px; margin-top: 40%;">THE END</h2>
+                <h2 class="pixel-font" style="font-size: 40px; margin-top: 30%;">THE END</h2>
                 <p style="font-family: 'VT323', monospace; font-size: 24px; margin-top: 20px;">Generated with PixeTale</p>
+                
+                <button onclick="exitBook()" class="pixel-btn" style="margin-top: 50px; background-color: #ef4444; border-color: #7f1d1d; font-size: 16px; padding: 15px 30px;">
+                    EXIT
+                </button>
             </div>
         </div>
     `;
@@ -291,7 +295,7 @@ export const StoryRenderer: React.FC<StoryRendererProps> = ({ story, onRestart }
         .pixel-btn {
             background: transparent; border: 4px solid #fff; color: #fff;
             padding: 20px 40px; font-family: 'Press Start 2P'; font-size: 20px;
-            cursor: pointer; margin-top: 40px;
+            cursor: pointer;
             box-shadow: 6px 6px 0 #333;
             transition: transform 0.1s;
         }
@@ -375,6 +379,24 @@ export const StoryRenderer: React.FC<StoryRendererProps> = ({ story, onRestart }
             // Audio context must be resumed after user interaction
             if(audioCtx.state === 'suspended') audioCtx.resume();
         });
+
+        // EXIT LOGIC
+        function exitBook() {
+            // 1. Try to exit Fullscreen
+            if (document.exitFullscreen) {
+                document.exitFullscreen().catch(err => {});
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen().catch(err => {});
+            }
+
+            // 2. Try to close window (Note: Scripts can often only close windows they opened)
+            try {
+                window.close();
+            } catch(e) {}
+
+            // 3. Fallback UI if window doesn't close automatically
+            document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#000;color:#fff;font-family:monospace;flex-direction:column;text-align:center;"><h1 style="font-size:30px; margin-bottom:20px;">THANKS FOR PLAYING</h1><p>You can now close this tab.</p></div>';
+        }
 
         function playFlipSound() {
             const oscillator = audioCtx.createOscillator();
