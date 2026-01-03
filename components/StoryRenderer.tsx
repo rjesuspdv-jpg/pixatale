@@ -193,10 +193,9 @@ export const StoryRenderer: React.FC<StoryRendererProps> = ({ story, onRestart }
     URL.revokeObjectURL(url);
   };
 
-  // --- 3. FLIPBOOK APP (Corregido) ---
+  // --- 3. FLIPBOOK APP (FULL PAGE & SPREAD VIEW) ---
   const downloadFlipbook = () => {
-    // 1. Portada (Tipo Hard)
-    // Al abrirla, la librería muestra la siguiente página a la izquierda y la subsiguiente a la derecha.
+    // 1. Portada
     const coverPage = `
         <div class="page page-cover" data-density="hard">
             <div class="page-content">
@@ -204,21 +203,20 @@ export const StoryRenderer: React.FC<StoryRendererProps> = ({ story, onRestart }
                 <div class="cover-image-container">
                     <img src="${story.coverImageUrl}" class="pixel-art-img" />
                 </div>
-                <div class="footer">CLICK OR DRAG CORNER TO OPEN</div>
+                <div class="footer">CLICK CORNER TO OPEN</div>
             </div>
         </div>
     `;
 
-    // 2. Páginas Interiores (Tipo Soft)
-    // Generamos pares: Imagen (Izquierda) - Texto (Derecha)
+    // 2. Páginas Interiores (Imagen Izq, Texto Der)
     const interiorPages = story.pages.map((page, i) => `
-        <div class="page" data-density="soft"> <!-- IZQUIERDA: IMAGEN -->
+        <div class="page" data-density="soft"> 
             <div class="page-content image-mode">
                 <img src="${page.imageUrl}" class="pixel-art-img full-height" />
                 <span class="page-number left-num">${i + 1}A</span>
             </div>
         </div>
-        <div class="page" data-density="soft"> <!-- DERECHA: TEXTO -->
+        <div class="page" data-density="soft"> 
             <div class="page-content text-mode">
                 <div class="text-box">
                     ${page.content.split('\n').map(p => `<p>${p}</p>`).join('')}
@@ -228,7 +226,7 @@ export const StoryRenderer: React.FC<StoryRendererProps> = ({ story, onRestart }
         </div>
     `).join('');
 
-    // 3. Contraportada (Tipo Hard)
+    // 3. Contraportada
     const backCover = `
         <div class="page page-cover" data-density="hard">
             <div class="page-content center-all" style="justify-content: center; align-items: center; display: flex; flex-direction: column;">
@@ -247,8 +245,29 @@ export const StoryRenderer: React.FC<StoryRendererProps> = ({ story, onRestart }
     <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
     <style>
-        body { background-color: #1a1a1a; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'VT323', monospace; }
-        .flip-book { box-shadow: 0 0 20px rgba(0,0,0,0.5); display: none; background-size: cover; }
+        /* FULL SCREEN SETUP */
+        body { 
+            background-color: #1a1a1a; 
+            margin: 0; padding: 0;
+            width: 100vw; height: 100vh;
+            overflow: hidden; 
+            font-family: 'VT323', monospace; 
+            display: flex; justify-content: center; align-items: center;
+        }
+        
+        .container {
+            width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .flip-book { 
+            box-shadow: 0 0 50px rgba(0,0,0,0.8); 
+            display: none; 
+            /* Let PageFlip handle dimensions, but basic setup */
+        }
+        
         .page { padding: 20px; background-color: #fdfdfd; border: 1px solid #c2c2c2; overflow: hidden; }
         .page-content { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: space-between; }
         .page-cover { background-color: #0d0d1a; color: #fbbf24; border: 4px solid #fbbf24; }
@@ -261,7 +280,7 @@ export const StoryRenderer: React.FC<StoryRendererProps> = ({ story, onRestart }
         .full-height { width: 100%; height: 100%; object-fit: cover; }
         
         .text-mode { background: #fff; color: #000; justify-content: center; }
-        .text-box { padding: 20px; font-size: 24px; line-height: 1.5; text-align: justify; border: 2px dashed #ccc; height: 90%; overflow-y: auto; }
+        .text-box { padding: 20px; font-size: 20px; line-height: 1.5; text-align: justify; border: 2px dashed #ccc; height: 90%; overflow-y: auto; }
         .text-box p { margin-bottom: 15px; }
 
         .page-number { font-family: 'Press Start 2P'; font-size: 10px; color: #888; position: absolute; bottom: 10px; }
@@ -270,6 +289,7 @@ export const StoryRenderer: React.FC<StoryRendererProps> = ({ story, onRestart }
 
         .footer { text-align: center; font-size: 10px; margin-bottom: 10px; animation: blink 2s infinite; }
         @keyframes blink { 50% { opacity: 0; } }
+        
         .controls { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 99; display: flex; gap: 20px; }
         .btn { background: #fbbf24; border: 4px solid #fff; padding: 10px 20px; font-family: 'Press Start 2P'; cursor: pointer; box-shadow: 4px 4px 0 #000; }
         .btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #000; }
@@ -301,11 +321,27 @@ export const StoryRenderer: React.FC<StoryRendererProps> = ({ story, onRestart }
             oscillator.start();
             oscillator.stop(audioCtx.currentTime + 0.1);
         }
+
         const pageFlip = new St.PageFlip(document.getElementById('book'), {
-            width: 450, height: 600, size: 'stretch', minWidth: 300, maxWidth: 800, minHeight: 400, maxHeight: 1200, maxShadowOpacity: 0.5, showCover: true, mobileScrollSupport: false 
+            // Base dimensions for ONE page (half of spread)
+            width: 550, 
+            height: 750,
+            
+            // KEY SETTINGS FOR FULL SCREEN & SPREADS
+            size: 'stretch',
+            minWidth: 300,
+            maxWidth: 1200, // Increased to allow stretching on large screens
+            minHeight: 400,
+            maxHeight: 1800, // Increased
+            
+            showCover: true, 
+            usePortrait: false, // FORCE DOUBLE PAGE ON DESKTOP
+            mobileScrollSupport: false 
         });
+
         pageFlip.loadFromHTML(document.querySelectorAll('.page'));
         document.getElementById('book').style.display = 'block';
+        
         pageFlip.on('flip', (e) => { playFlipSound(); });
         document.addEventListener('keydown', (e) => { if (e.key === 'ArrowRight') pageFlip.flipNext(); if (e.key === 'ArrowLeft') pageFlip.flipPrev(); });
         window.book = pageFlip;
