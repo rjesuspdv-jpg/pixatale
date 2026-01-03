@@ -193,7 +193,7 @@ export const StoryRenderer: React.FC<StoryRendererProps> = ({ story, onRestart }
     URL.revokeObjectURL(url);
   };
 
-  // --- 3. FLIPBOOK APP (FULL PAGE & SPREAD VIEW) ---
+  // --- 3. FLIPBOOK APP (FULL SCREEN & ADAPTIVE TEXT) ---
   const downloadFlipbook = () => {
     // 1. Portada
     const coverPage = `
@@ -203,13 +203,34 @@ export const StoryRenderer: React.FC<StoryRendererProps> = ({ story, onRestart }
                 <div class="cover-image-container">
                     <img src="${story.coverImageUrl}" class="pixel-art-img" />
                 </div>
-                <div class="footer">CLICK CORNER TO OPEN</div>
+                <div class="footer">CLICK OR DRAG CORNER TO OPEN</div>
             </div>
         </div>
     `;
 
     // 2. Páginas Interiores (Imagen Izq, Texto Der)
-    const interiorPages = story.pages.map((page, i) => `
+    const interiorPages = story.pages.map((page, i) => {
+        // Cálculo de tamaño de fuente adaptable
+        const charCount = page.content.length;
+        let fontSize = "18px";
+        let lineHeight = "1.5";
+        
+        // Lógica de "Responsive Text": Menos texto = Más grande
+        if (charCount < 80) {
+            fontSize = "36px";
+            lineHeight = "1.3";
+        } else if (charCount < 180) {
+            fontSize = "26px";
+            lineHeight = "1.4";
+        } else if (charCount < 300) {
+            fontSize = "20px";
+            lineHeight = "1.5";
+        } else {
+            fontSize = "16px";
+            lineHeight = "1.4";
+        }
+
+        return `
         <div class="page" data-density="soft"> 
             <div class="page-content image-mode">
                 <img src="${page.imageUrl}" class="pixel-art-img full-height" />
@@ -218,13 +239,13 @@ export const StoryRenderer: React.FC<StoryRendererProps> = ({ story, onRestart }
         </div>
         <div class="page" data-density="soft"> 
             <div class="page-content text-mode">
-                <div class="text-box">
+                <div class="text-box" style="font-size: ${fontSize}; line-height: ${lineHeight}; text-align: center;">
                     ${page.content.split('\n').map(p => `<p>${p}</p>`).join('')}
                 </div>
                 <span class="page-number right-num">${i + 1}B</span>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 
     // 3. Contraportada
     const backCover = `
@@ -246,26 +267,40 @@ export const StoryRenderer: React.FC<StoryRendererProps> = ({ story, onRestart }
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
     <style>
         /* FULL SCREEN SETUP */
-        body { 
-            background-color: #1a1a1a; 
+        html, body {
             margin: 0; padding: 0;
-            width: 100vw; height: 100vh;
-            overflow: hidden; 
-            font-family: 'VT323', monospace; 
-            display: flex; justify-content: center; align-items: center;
-        }
-        
-        .container {
             width: 100%; height: 100%;
-            display: flex; justify-content: center; align-items: center;
-            padding: 20px;
-            box-sizing: border-box;
+            overflow: hidden; /* Hide scrollbars */
+            background-color: #0d0d1a;
+            font-family: 'VT323', monospace; 
         }
 
+        .container {
+            width: 100vw; height: 100vh;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        /* Start Screen Overlay */
+        #launcher {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 9999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: #fbbf24;
+        }
+
+        .pixel-btn {
+            background: transparent; border: 4px solid #fff; color: #fff;
+            padding: 20px 40px; font-family: 'Press Start 2P'; font-size: 20px;
+            cursor: pointer; margin-top: 40px;
+            box-shadow: 6px 6px 0 #333;
+            transition: transform 0.1s;
+        }
+        .pixel-btn:active { transform: translate(4px, 4px); box-shadow: 2px 2px 0 #333; }
+        .pixel-btn:hover { background: #fff; color: #000; }
+
         .flip-book { 
-            box-shadow: 0 0 50px rgba(0,0,0,0.8); 
-            display: none; 
-            /* Let PageFlip handle dimensions, but basic setup */
+            box-shadow: 0 0 100px rgba(0,0,0,0.9); 
+            display: none; /* Hidden until started */
         }
         
         .page { padding: 20px; background-color: #fdfdfd; border: 1px solid #c2c2c2; overflow: hidden; }
@@ -279,9 +314,16 @@ export const StoryRenderer: React.FC<StoryRendererProps> = ({ story, onRestart }
         .image-mode { padding: 0; background: #000; justify-content: center; align-items: center; }
         .full-height { width: 100%; height: 100%; object-fit: cover; }
         
-        .text-mode { background: #fff; color: #000; justify-content: center; }
-        .text-box { padding: 20px; font-size: 20px; line-height: 1.5; text-align: justify; border: 2px dashed #ccc; height: 90%; overflow-y: auto; }
-        .text-box p { margin-bottom: 15px; }
+        /* Text Page Styling - Centered */
+        .text-mode { background: #fff; color: #000; justify-content: center; display: flex; flex-direction: column; }
+        .text-box { 
+            padding: 30px; 
+            border: 4px double #ccc; 
+            height: 85%; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            overflow-y: hidden; /* Prevent scroll on short text */
+        }
+        .text-box p { margin-bottom: 20px; width: 100%; }
 
         .page-number { font-family: 'Press Start 2P'; font-size: 10px; color: #888; position: absolute; bottom: 10px; }
         .left-num { left: 10px; color: #fbbf24; }
@@ -290,25 +332,51 @@ export const StoryRenderer: React.FC<StoryRendererProps> = ({ story, onRestart }
         .footer { text-align: center; font-size: 10px; margin-bottom: 10px; animation: blink 2s infinite; }
         @keyframes blink { 50% { opacity: 0; } }
         
-        .controls { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 99; display: flex; gap: 20px; }
+        .controls { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 99; display: none; gap: 20px; }
         .btn { background: #fbbf24; border: 4px solid #fff; padding: 10px 20px; font-family: 'Press Start 2P'; cursor: pointer; box-shadow: 4px 4px 0 #000; }
         .btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #000; }
     </style>
 </head>
 <body>
+    <!-- LAUNCHER OVERLAY -->
+    <div id="launcher">
+        <h1 class="pixel-font" style="text-align:center; line-height: 1.5; color: #fff;">READY TO READ?</h1>
+        <button id="start-btn" class="pixel-btn">START EXPERIENCE</button>
+        <p style="margin-top:20px; color: #666; font-size: 14px;">(Full Screen Mode)</p>
+    </div>
+
     <div class="container">
         <div id="book" class="flip-book">
             ${coverPage}${interiorPages}${backCover}
         </div>
     </div>
-    <div class="controls">
+    
+    <div class="controls" id="controls">
         <button class="btn" onclick="book.flipPrev()">PREV</button>
         <button class="btn" onclick="book.flipNext()">NEXT</button>
     </div>
+
     <script>
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        function playFlipSound() {
+        
+        // Fullscreen & Start Logic
+        document.getElementById('start-btn').addEventListener('click', async () => {
+            const elem = document.documentElement;
+            if (elem.requestFullscreen) {
+                await elem.requestFullscreen().catch(err => console.log(err));
+            } else if (elem.webkitRequestFullscreen) { /* Safari */
+                await elem.webkitRequestFullscreen().catch(err => console.log(err));
+            }
+
+            document.getElementById('launcher').style.display = 'none';
+            document.getElementById('book').style.display = 'block';
+            document.getElementById('controls').style.display = 'flex';
+            
+            // Audio context must be resumed after user interaction
             if(audioCtx.state === 'suspended') audioCtx.resume();
+        });
+
+        function playFlipSound() {
             const oscillator = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
             oscillator.connect(gainNode);
@@ -323,27 +391,25 @@ export const StoryRenderer: React.FC<StoryRendererProps> = ({ story, onRestart }
         }
 
         const pageFlip = new St.PageFlip(document.getElementById('book'), {
-            // Base dimensions for ONE page (half of spread)
             width: 550, 
             height: 750,
-            
-            // KEY SETTINGS FOR FULL SCREEN & SPREADS
             size: 'stretch',
             minWidth: 300,
-            maxWidth: 1200, // Increased to allow stretching on large screens
+            maxWidth: 1200, 
             minHeight: 400,
-            maxHeight: 1800, // Increased
-            
+            maxHeight: 1800,
             showCover: true, 
-            usePortrait: false, // FORCE DOUBLE PAGE ON DESKTOP
+            usePortrait: false, 
             mobileScrollSupport: false 
         });
 
         pageFlip.loadFromHTML(document.querySelectorAll('.page'));
-        document.getElementById('book').style.display = 'block';
         
         pageFlip.on('flip', (e) => { playFlipSound(); });
-        document.addEventListener('keydown', (e) => { if (e.key === 'ArrowRight') pageFlip.flipNext(); if (e.key === 'ArrowLeft') pageFlip.flipPrev(); });
+        document.addEventListener('keydown', (e) => { 
+            if (e.key === 'ArrowRight') pageFlip.flipNext(); 
+            if (e.key === 'ArrowLeft') pageFlip.flipPrev(); 
+        });
         window.book = pageFlip;
     </script>
 </body></html>`;
